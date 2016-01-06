@@ -19,9 +19,9 @@ The syntax is simple as this:
         [-CompressionLevel <CompressionLevel> {None | Fast | Low | Normal | High | Ultra}]
         [-CompressionMethod <CompressionMethod> {Copy | Deflate | Deflate64 | BZip2 | Lzma | Lzma2 | Ppmd | Default}]
         [<CommonParameters>]
+		
+It works with both x86 and x64 and uses [SevenZipSharp](https://sevenzipsharp.codeplex.com/) as a wrapper around 7zip’s API.
 
 ![Compress](https://github.com/onyxhat/7Zip4Powershell/blob/master/screenshots/Compress_Progress_1.png)
 ![UnCompress](https://github.com/onyxhat/7Zip4Powershell/blob/master/screenshots/UnCompress_Progress_1.png)
 ![UnCompress Force](https://github.com/onyxhat/7Zip4Powershell/blob/master/screenshots/UnCompress_Progress_2.png)
-		
-It works with both x86 and x64 and uses [SevenZipSharp](https://sevenzipsharp.codeplex.com/) as a wrapper around 7zip’s API.
