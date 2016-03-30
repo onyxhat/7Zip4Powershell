@@ -1,6 +1,7 @@
 *.suo
 *.user
 *.sln.docstates
+*.vs
 packages/
 _ReSharper*
 [Bb]in
