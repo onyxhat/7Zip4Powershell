@@ -5,7 +5,7 @@ using System.Linq;
 using System.Management.Automation;
 using SevenZip;
 
-namespace SevenZip4Powershell {
+namespace SevenZip4PowerShell {
     [Cmdlet(VerbsData.Compress, "7Zip")]
     public class Compress7Zip : ThreadedCmdlet {
         public Compress7Zip() {
@@ -30,11 +30,17 @@ namespace SevenZip4Powershell {
         [Parameter]
         public OutArchiveFormat Format { get; set; }
 
+        [Parameter(Mandatory = false, HelpMessage = "Password to be applied to archive")]
+        public string Password { get; set; }
+
         [Parameter]
         public CompressionLevel CompressionLevel { get; set; }
 
         [Parameter]
         public CompressionMethod CompressionMethod { get; set; }
+
+        [Parameter(HelpMessage = "Allows setting additional parameters on SevenZipCompressor")]
+        public ScriptBlock CustomInitialization { get; set; }
 
         protected override void ProcessRecord() {
             base.ProcessRecord();
@@ -58,14 +64,12 @@ namespace SevenZip4Powershell {
             }
 
             public override void Execute() {
-                var libraryPath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(GetType().Assembly.Location), Environment.Is64BitProcess ? "7z64.dll" : "7z.dll");
-                SevenZipBase.SetLibraryPath(libraryPath);
-
                 var compressor = new SevenZipCompressor {
                     ArchiveFormat = _cmdlet.Format,
                     CompressionLevel = _cmdlet.CompressionLevel,
                     CompressionMethod = _cmdlet.CompressionMethod
                 };
+                _cmdlet.CustomInitialization?.Invoke(compressor);
 
                 if (_cmdlet._directoryOrFilesFromPipeline == null) {
                     _cmdlet._directoryOrFilesFromPipeline = new List<string> {
@@ -78,34 +82,38 @@ namespace SevenZip4Powershell {
                 var archiveFileName = new FileInfo(System.IO.Path.Combine(_cmdlet.SessionState.Path.CurrentFileSystemLocation.Path, _cmdlet.ArchiveFileName)).FullName;
 
                 var activity = directoryOrFiles.Length > 1
-                    ? String.Format("Compressing {0} Files to {1}", directoryOrFiles.Length, archiveFileName)
-                    : String.Format("Compressing {0} to {1}", directoryOrFiles.First(), archiveFileName);
+                    ? $"Compressing {directoryOrFiles.Length} Files to {archiveFileName}"
+                    : $"Compressing {directoryOrFiles.First()} to {archiveFileName}";
 
                 var currentStatus = "Compressing";
                 compressor.FilesFound += (sender, args) =>
-                    Write(String.Format("{0} files found for compression", args.Value));
+                    Write($"{args.Value} files found for compression");
                 compressor.Compressing += (sender, args) =>
                     WriteProgress(new ProgressRecord(0, activity, currentStatus) { PercentComplete = args.PercentDone });
                 compressor.FileCompressionStarted += (sender, args) => {
-                    currentStatus = String.Format("Compressing {0}", args.FileName);
-                    Write(String.Format("Compressing {0}", args.FileName));
+                    currentStatus = $"Compressing {args.FileName}";
+                    Write($"Compressing {args.FileName}");
                 };
-                
+
                 if (directoryOrFiles.Any(path => new FileInfo(path).Exists)) {
                     var notFoundFiles = directoryOrFiles.Where(path => !new FileInfo(path).Exists).ToArray();
                     if (notFoundFiles.Any()) {
                         throw new FileNotFoundException("File(s) not found: " + string.Join(", ", notFoundFiles));
                     }
-                    compressor.CompressFiles(archiveFileName, directoryOrFiles);
+                    if (_cmdlet.Password == null) {
+                        compressor.CompressFiles(archiveFileName, directoryOrFiles);
+                    } else {
+                        compressor.CompressFilesEncrypted(archiveFileName, _cmdlet.Password, directoryOrFiles);
+                    }
                 }
                 if (directoryOrFiles.Any(path => new DirectoryInfo(path).Exists)) {
                     if (directoryOrFiles.Length > 1) {
                         throw new ArgumentException("Only one directory allowed as input");
                     }
                     if (_cmdlet.Filter != null) {
-                        compressor.CompressDirectory(directoryOrFiles[0], archiveFileName, _cmdlet.Filter, true);
+                        compressor.CompressDirectory(directoryOrFiles[0], archiveFileName, _cmdlet.Password, _cmdlet.Filter, true);
                     } else {
-                        compressor.CompressDirectory(directoryOrFiles[0], archiveFileName);
+                        compressor.CompressDirectory(directoryOrFiles[0], archiveFileName, _cmdlet.Password);
                     }
                 }
 
