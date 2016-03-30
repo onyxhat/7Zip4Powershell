@@ -13,6 +13,7 @@ Expand-7Zip
     [-ArchiveFileName] <string> 
     [-TargetPath] <string>  
     [-Force] <switch>  
+    [-Password] <string> 
     [-CustomInitialization <ScriptBlock>]
     [<CommonParameters>]
  
