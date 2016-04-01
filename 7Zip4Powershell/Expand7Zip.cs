@@ -16,7 +16,7 @@ namespace SevenZip4PowerShell {
         [Parameter(Position = 2, Mandatory = false, HelpMessage = "Force extraction to existing target folder")]
         public SwitchParameter Force { get; set; }
 
-        [Parameter(Mandatory = false, HelpMessage = "Password to be applied to archive")]
+        [Parameter]
         public string Password { get; set; }
 
         [Parameter(HelpMessage = "Allows setting additional parameters on SevenZipExtractor")]
@@ -44,33 +44,16 @@ namespace SevenZip4PowerShell {
                     Write($"Extracting archive {archiveFileName}");
                     WriteProgress(new ProgressRecord(0, activity, statusDescription) { PercentComplete = 0 });
 
-                    //TODO - find better solution to this terrible HACK
-                    if (_cmdlet.Password == null) {
-                        using (var extractor = new SevenZipExtractor(archiveFileName))
-                        {
-                            _cmdlet.CustomInitialization?.Invoke(extractor);
+                    using (var extractor = CreateExtractor(archiveFileName)) {
+                        _cmdlet.CustomInitialization?.Invoke(extractor);
 
-                            extractor.Extracting += (sender, args) =>
-                                                    WriteProgress(new ProgressRecord(0, activity, statusDescription) { PercentComplete = args.PercentDone });
-                            extractor.FileExtractionStarted += (sender, args) => {
-                                statusDescription = $"Extracting file {args.FileInfo.FileName}";
-                                Write(statusDescription);
-                            };
-                            extractor.ExtractArchive(targetPath);
-                        }
-                    } else {
-                        using (var extractor = new SevenZipExtractor(archiveFileName, _cmdlet.Password))
-                        {
-                            _cmdlet.CustomInitialization?.Invoke(extractor);
-
-                            extractor.Extracting += (sender, args) =>
-                                                    WriteProgress(new ProgressRecord(0, activity, statusDescription) { PercentComplete = args.PercentDone });
-                            extractor.FileExtractionStarted += (sender, args) => {
-                                statusDescription = $"Extracting file {args.FileInfo.FileName}";
-                                Write(statusDescription);
-                            };
-                            extractor.ExtractArchive(targetPath);
-                        }
+                        extractor.Extracting += (sender, args) =>
+                                                WriteProgress(new ProgressRecord(0, activity, statusDescription) { PercentComplete = args.PercentDone });
+                        extractor.FileExtractionStarted += (sender, args) => {
+                            statusDescription = $"Extracting file {args.FileInfo.FileName}";
+                            Write(statusDescription);
+                        };
+                        extractor.ExtractArchive(targetPath);
                     }
 
                     WriteProgress(new ProgressRecord(0, activity, "Finished") { RecordType = ProgressRecordType.Completed });
@@ -78,6 +61,14 @@ namespace SevenZip4PowerShell {
                 } else {
                     WriteProgress(new ProgressRecord(0, activity, "Finished") { RecordType = ProgressRecordType.Completed });
                     Write("Target already exists");
+                }
+            }
+
+            private SevenZipExtractor CreateExtractor(string archiveFileName) {
+                if (!string.IsNullOrEmpty(_cmdlet.Password)) {
+                    return new SevenZipExtractor(archiveFileName, _cmdlet.Password);
+                } else {
+                    return new SevenZipExtractor(archiveFileName);
                 }
             }
         }
