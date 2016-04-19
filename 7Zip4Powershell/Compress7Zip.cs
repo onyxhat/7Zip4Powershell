@@ -66,13 +66,6 @@ namespace SevenZip4PowerShell {
             private bool HasPassword => !string.IsNullOrEmpty(_cmdlet.Password);
 
             public override void Execute() {
-                var compressor = new SevenZipCompressor {
-                    ArchiveFormat = _cmdlet.Format,
-                    CompressionLevel = _cmdlet.CompressionLevel,
-                    CompressionMethod = _cmdlet.CompressionMethod
-                };
-                _cmdlet.CustomInitialization?.Invoke(compressor);
-
                 if (_cmdlet._directoryOrFilesFromPipeline == null) {
                     _cmdlet._directoryOrFilesFromPipeline = new List<string> {
                         _cmdlet.Path
@@ -82,6 +75,34 @@ namespace SevenZip4PowerShell {
                 var directoryOrFiles = _cmdlet._directoryOrFilesFromPipeline
                     .Select(path => new FileInfo(System.IO.Path.Combine(_cmdlet.SessionState.Path.CurrentFileSystemLocation.Path, path)).FullName).ToArray();
                 var archiveFileName = new FileInfo(System.IO.Path.Combine(_cmdlet.SessionState.Path.CurrentFileSystemLocation.Path, _cmdlet.ArchiveFileName)).FullName;
+
+                switch (System.IO.Path.GetExtension(archiveFileName).ToLowerInvariant()) {
+                    case ".7z":
+                        _cmdlet.Format = OutArchiveFormat.SevenZip;
+                        break;
+                    case ".zip":
+                        _cmdlet.Format = OutArchiveFormat.Zip;
+                        break;
+                    case ".gz":
+                        _cmdlet.Format = OutArchiveFormat.GZip;
+                        break;
+                    case ".bz2":
+                        _cmdlet.Format = OutArchiveFormat.BZip2;
+                        break;
+                    case ".tar":
+                        _cmdlet.Format = OutArchiveFormat.Tar;
+                        break;
+                    case ".xz":
+                        _cmdlet.Format = OutArchiveFormat.XZ;
+                        break;
+                }
+
+                var compressor = new SevenZipCompressor {
+                    ArchiveFormat = _cmdlet.Format,
+                    CompressionLevel = _cmdlet.CompressionLevel,
+                    CompressionMethod = _cmdlet.CompressionMethod
+                };
+                _cmdlet.CustomInitialization?.Invoke(compressor);
 
                 var activity = directoryOrFiles.Length > 1
                     ? $"Compressing {directoryOrFiles.Length} Files to {archiveFileName}"
